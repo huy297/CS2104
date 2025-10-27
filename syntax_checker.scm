@@ -553,17 +553,14 @@
               (lambda (acc)
                 (let ([ch (peek-char p)])
                   (cond
-                    ;; EOF
                     [(eof-object? ch)
                      (reverse acc)]
 
-                    ;; newline -> tăng line
                     [(char=? ch #\newline)
                      (read-char p)
                      (set! line (+ line 1))
                      (visit acc)]
 
-                    ;; comment -> skip đến hết dòng
                     [(char=? ch #\;)
                      (let skip ([c (read-char p)])
                        (if (and (not (eof-object? c))
@@ -573,11 +570,10 @@
                              (set! line (+ line 1))
                              (visit acc))))]
 
-                    ;; đọc 1 expression
                     [else
                      (let ([expr (read p)])
-                       (visit (cons (cons line expr) acc)))])))])  ; <-- kết thúc lambda visit
-          (visit '()))))))  ; <-- kết thúc letrec và let
+                       (visit (cons (cons line expr) acc)))])))]) 
+          (visit '()))))))  
 
 
 (define (check-file filename)
