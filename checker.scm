@@ -26,7 +26,6 @@
                                (visit (cdr v) csp)))]
                         [else #f]))])
       (visit v '()))))
-
 ;;;
 
 (define keyword?
