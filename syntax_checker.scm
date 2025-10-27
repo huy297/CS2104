@@ -518,7 +518,10 @@
 
 
 
+;;; ------
 
+
+;;; ---
 
 ;;; ---------------------------------------------------------------------------
 ;;; Toplevel / Program / File I/O
@@ -530,56 +533,62 @@
         (check-definition v)
         (check-expression v))))
 
-(define (check-program v)
-  (cond
-    [(null? v) #t]
-    [(pair? v)
-     (let ([head-ok? (check-toplevel-form (car v))]
-           [tail-ok? (check-program (cdr v))])
-       (and head-ok? tail-ok?))] 
-    [else
-     (begin
-       (unless check-silently
-         (printf "[Line ~a] [error] check-program -- unrecognized input: ~s~n" current-line v))
-       #f)]))
-
+(define check-program
+  (lambda (v)
+    (cond [(null? v) #t]
+          [(pair? v) (and (check-toplevel-form (car v))
+                          (check-program (cdr v)))]
+          [else
+           (begin
+             (unless check-silently
+               (printf "check-program -- unrecognized input: ~s~n" v))
+             #f)])))
 
 (define (read-file filename)
   (call-with-input-file filename
     (lambda (p)
-      (letrec
-          ([visit
-            (lambda (acc)
-              (let ([ch (peek-char p)])
-                (cond
-                  [(eof-object? ch)
-                   (reverse acc)]
+      (let ([line 1])
+        (letrec
+            ([visit
+              (lambda (acc)
+                (let ([ch (peek-char p)])
+                  (cond
+                    ;; EOF
+                    [(eof-object? ch)
+                     (reverse acc)]
 
-                  [(char=? ch #\newline)
-                   (read-char p)
-                   (set! current-line (+ current-line 1))
-                   (visit acc)]
+                    ;; newline -> tăng line
+                    [(char=? ch #\newline)
+                     (read-char p)
+                     (set! line (+ line 1))
+                     (visit acc)]
 
-                  [(char=? ch #\;)
-                   (let skip ([c (read-char p)])
-                     (if (and (not (eof-object? c))
-                              (not (char=? c #\newline)))
-                         (skip (read-char p))
-                         (begin
-                           (set! current-line (+ current-line 1))
-                           (visit acc))))]
+                    ;; comment -> skip đến hết dòng
+                    [(char=? ch #\;)
+                     (let skip ([c (read-char p)])
+                       (if (and (not (eof-object? c))
+                                (not (char=? c #\newline)))
+                           (skip (read-char p))
+                           (begin
+                             (set! line (+ line 1))
+                             (visit acc))))]
 
-                  [else
-                   (let ([line-now current-line]
-                         [expr (read p)])
-                     (cons (cons line-now expr) (visit acc)))])))])
-        (visit '())))))
+                    ;; đọc 1 expression
+                    [else
+                     (let ([expr (read p)])
+                       (visit (cons (cons line expr) acc)))])))])  ; <-- kết thúc lambda visit
+          (visit '()))))))  ; <-- kết thúc letrec và let
 
 
 (define (check-file filename)
-  (for-each
-   (lambda (line-expr)
-     (set! current-line (car line-expr)) 
-     (check-expression (cdr line-expr))) 
-   (read-file filename)))
+  (if (string? filename)
+      (let ([forms (read-file filename)])
+        (for-each
+         (lambda (line-form)
+           (set! current-line (car line-form))
+           (check-toplevel-form (cdr line-form)))
+         forms))
+      (begin
+        (printf "not a string: ~s~n" filename)
+        #f)))
 

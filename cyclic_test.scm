@@ -1,3 +1,6 @@
+#0=(define x '(1 2 . #0#))
+(+ 1 2)
+
 ;; This Scheme program has correct parentheses
 ;; but lots of semantic and logical errors for testing check-file.
 
