@@ -3,6 +3,32 @@
 (define (proper-list-of-given-length? v n)
   (and (list? v) (= (length v) n)))
 
+
+;; for cyclic
+(define atomic-value?
+  (lambda (v)
+    (or (number? v)
+        (boolean? v)
+        (char? v)
+        (string? v)
+        (symbol? v)
+        (null? v))))
+
+(define cyclic-value?
+  (lambda (v)
+    (letrec ([visit (lambda (v cs)
+                      (cond
+                        [(atomic-value? v) #f]
+                        [(memq v cs) #t]
+                        [(pair? v)
+                         (let ([csp (cons v cs)])
+                           (or (visit (car v) csp)
+                               (visit (cdr v) csp)))]
+                        [else #f]))])
+      (visit v '()))))
+
+;;;
+
 (define keyword?
   (lambda (w)
     (and (symbol? w)
@@ -394,6 +420,10 @@
 (define check-expression
   (lambda (v)
     (cond
+        [(cyclic-value? v)
+        (begin
+        (printf "[warning] cyclic structure detected: ~s~n" v)
+        #f)]
       [(is-number? v)    (check-number v)]
       [(is-boolean? v)   (check-boolean v)]
       [(is-character? v) (check-character v)]
@@ -463,3 +493,4 @@
     (if (string? filename)
         (check-program (read-file filename))
         (begin (printf "not a string: ~s~n" filename) #f))))
+
