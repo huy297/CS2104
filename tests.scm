@@ -213,3 +213,45 @@
          (lambda () (check-program '((define x 1) (define y (lambda () x))))))
 (t-true "define sugar allowed"
          (lambda () (check-program '((define (f x) x)))))
+
+
+;; ========== nested structures ==========
+(t-true "nested if and let"
+        (lambda ()
+          (check-expression
+           '(let ((x 1))
+              (if (> x 0)
+                  (let ((y 2)) (+ x y))
+                  0)))))
+
+
+;; ========== application edge cases ==========
+(t-false "application numeric op"
+         (lambda () (check-expression '(1 2 3))))
+(t-false "application keyword op"
+         (lambda () (check-expression '(if 1 2 3 4))))
+(t-true  "application lambda op"
+         (lambda () (check-expression '((lambda (x) (+ x 1)) 3))))
+
+;; ========== malformed lambdas ==========
+(t-false "lambda no body"
+         (lambda () (check-expression '(lambda (x)))))
+(t-false "lambda non-symbol arg"
+         (lambda () (check-expression '(lambda (1) 1))))
+(t-false "trace-lambda extra arg"
+         (lambda () (check-expression '(trace-lambda f (x y) x y))))
+
+;; ========== malformed let* and letrec ==========
+(t-false "let* duplicate vars"
+         (lambda () (check-expression '(let* ((x 1) (x 2)) x))))
+(t-false "letrec non-function binding"
+         (lambda () (check-expression '(letrec ((x 1) (y (lambda () 2))) x))))
+(t-true  "letrec nested lambda ok"
+         (lambda () (check-expression '(letrec ((f (lambda (x) (if x (f (- x 1)) x)))) (f 3)))))
+
+;; ========== cond / case edge cases ==========
+(t-false "cond else twice"
+         (lambda () (check-expression '(cond [(> 1 0) 1] [else 2] [else 3]))))
+(t-false "case duplicated else"
+         (lambda () (check-expression '(case 1 [else 2] [else 3]))))
+
