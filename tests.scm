@@ -97,45 +97,116 @@
 ;; ========== let ==========
 (t-true  "let ok"
          (lambda () (check-expression '(let ((x 1) (y 2)) (+ x y)))))
+(t-true  "let empty bindings"
+         (lambda () (check-expression '(let () 42))))
 (t-false "let duplicate vars"
          (lambda () (check-expression '(let ((x 1) (x 2)) x))))
 (t-false "let binding shape"
          (lambda () (check-expression '(let ((x)) x))))
+(t-false  "let multiple body expressions"
+         (lambda () (check-expression '(let ((x 1) (y 2)) x y))))
+(t-false "let no body"
+         (lambda () (check-expression '(let ((x 1))))))
+(t-false "let binding has >2 elements"
+         (lambda () (check-expression '(let ((x 1 2)) x))))
+(t-false "let keyword as binding name"
+         (lambda () (check-expression '(let ((if 1)) if))))
+(t-false "let bindings must be proper pairs"
+         (lambda () (check-expression '(let ((x . 1)) x))))
+
 
 ;; ========== let* ==========
 (t-true  "let* ok"
          (lambda () (check-expression '(let* ((x 1) (y x)) y))))
+(t-true  "let* empty bindings allowed"
+         (lambda () (check-expression '(let* () 42))))
+(t-true  "let* variable shadowing"
+         (lambda () (check-expression '(let* ((x 1) (x 2)) x))))
 (t-false "let* bad binding"
          (lambda () (check-expression '(let* ((x)) x))))
+(t-false "let* keyword cannot be a binding name"
+         (lambda () (check-expression '(let* ((if 1)) if))))
+(t-false "let* binding pair must have exactly 2 elements"
+         (lambda () (check-expression '(let* ((x 1 2)) x))))
+(t-false "let* requires at least one body expression"
+         (lambda () (check-expression '(let* ((x 1))))))
 
 ;; ========== letrec ==========
 (t-true  "letrec ok (lambda RHS)"
          (lambda () (check-expression '(letrec ((f (lambda (x) x))) (f 1)))))
 (t-true  "letrec ok (trace-lambda RHS)"
          (lambda () (check-expression '(letrec ((f (trace-lambda f (x) x))) (f 1)))))
+(t-true  "letrec empty bindings"
+         (lambda () (check-expression '(letrec () 0))))
 (t-false "letrec RHS not lambda"
          (lambda () (check-expression '(letrec ((f 1)) f))))
 (t-false "letrec dup vars"
          (lambda () (check-expression '(letrec ((f (lambda (x) x))
                                                (f (lambda (y) y))) f))))
+(t-false "letrec bindings must be a list"
+         (lambda () (check-expression '(letrec 123 0))))
+(t-false "letrec binding must be a 2-element list"
+         (lambda () (check-expression '(letrec ((f)) 0))))
+(t-false "letrec binding must not have >2 elements"
+         (lambda () (check-expression '(letrec ((f (lambda (x) x) 1)) 0))))
+(t-false "letrec binding must be a proper pair"
+         (lambda () (check-expression '(letrec ((f . (lambda (x) x))) 0))))
+(t-false "letrec binding name must be a symbol"
+         (lambda () (check-expression '(letrec ((42 (lambda (x) x))) 0))))
+(t-false "letrec binding name cannot be a keyword"
+         (lambda () (check-expression '(letrec ((if (lambda (x) x))) 0))))
+(t-false "letrec multiple body expressions not allowed"
+         (lambda () (check-expression '(letrec ((f (lambda () 0))) f 1))))
 
 ;; ========== cond ==========
 (t-true  "cond simple"
          (lambda () (check-expression '(cond [(> 1 0) 1] [else 2]))))
 (t-true  "cond =>"
          (lambda () (check-expression '(cond [(> 1 0) => (lambda (x) x)] [else 0]))))
+(t-true  "cond inconsequential clause"
+         (lambda () (check-expression '(cond [(> 1 0)][else 0]))))
 (t-false "cond else not last"
          (lambda () (check-expression '(cond [else 1] [(#t) 2]))))
 (t-false "cond empty"
          (lambda () (check-expression '(cond))))
+(t-false "cond clause must be a list"
+         (lambda () (check-expression '(cond 1))))
+(t-false "cond clause must be proper list"
+         (lambda () (check-expression '(cond [((> 1 0)) . 1] [else 1]))))
+(t-false "cond else requires at least one expression"
+         (lambda () (check-expression '(cond [else]))))
+(t-false "cond duplicate else not allowed"
+         (lambda () (check-expression '(cond [else 1] [else 2]))))
+(t-false "cond => must have exactly one target"
+         (lambda () (check-expression
+                     '(cond [(> 1 0) => (lambda (x) x) 3][else 1]))))
+(t-false "cond else cannot use =>"
+         (lambda () (check-expression
+                     '(cond [else => (lambda (x) x)]))))
+
 
 ;; ========== case ==========
 (t-true  "case ok"
          (lambda () (check-expression '(case 1 [((1 2)) 'a] [else 'b]))))
+(t-true  "case list datum"
+         (lambda () (check-expression
+                     '(case '(1 2) [((1 2)) 'hit] [((1 3)) 'hit] [else 'miss]))))
 (t-false "case empty"
          (lambda () (check-expression '(case 1))))
 (t-false "case else not last"
          (lambda () (check-expression '(case 'x [else 1] [(() 2)]))))
+(t-false "case clause datums must be a list"
+         (lambda () (check-expression
+                     '(case 1 [1 'a][else 1]))))
+(t-false "case clause datums list must be proper"
+         (lambda () (check-expression
+                     '(case 1 [(1 . 2) 'a][else 1]))))
+(t-false "case clause must have at least one consequent"
+         (lambda () (check-expression
+                     '(case 1 [(1 2)][else 1]))))
+(t-false "case else must have at least one consequent"
+         (lambda () (check-expression
+                     '(case 1 [else]))))
 
 ;; ========== toplevel definition ==========
 (t-true  "define simple"
