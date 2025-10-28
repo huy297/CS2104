@@ -8,7 +8,6 @@
 ;;; ---------------------------------------------------------------------------
 ;;; Helpers
 ;;; ---------------------------------------------------------------------------
-(define current-line 1)
 
 (define make-error
   (lambda (msg)
@@ -371,7 +370,7 @@
   (lambda (fs)
     (let ([vars (collect-formal-symbols fs)])
       (cond
-        ;; malformed formals → 'bad from collect-formal-symbols
+        ;; malformed formals 
         [(eq? vars 'bad)
          (list (make-error "Malformed lambda formals"))]
         ;; duplicate parameters
@@ -572,7 +571,6 @@
 ;;; ---------------------------------------------------------------------------
 
 ;; cond
-;; -------- cond (shallow, collect-errors) --------
 
 (define is-cond?
   (lambda (v)
@@ -636,7 +634,6 @@
     (check-cond-clauses (cond-clauses v))))
 
 ;; case
-;; -------- case (shallow, collect-errors) --------
 
 (define is-case?
   (lambda (v)
