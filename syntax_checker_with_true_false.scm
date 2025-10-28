@@ -11,8 +11,9 @@
 (define current-line 1)
 
 (define make-error
-  (lambda (line msg)
-    (cons line msg)))
+  (lambda (msg)
+    msg))
+
 
 (define append-two
   (lambda (a b)
@@ -408,20 +409,29 @@
 
 (define check-letstar-bindings
   (lambda (bs)
-    (cond
-      [(null? bs) #t]
-      [(pair? bs)
-       (let ([b (car bs)])
-         (and (proper-list-of-given-length? b 2)
-              (check-variable (car b))
-              (check-expression (cadr b))
-              (check-letstar-bindings (cdr bs))))]
-      [else #f])))
+    (letrec ((go
+              (lambda (bs acc)
+                (cond
+                  ((null? bs) acc)
+                  ((pair? bs)
+                   (let ((b (car bs)))
+                     (if (proper-list-of-given-length? b 2)
+                         (go (cdr bs)
+                             (append-two acc
+                               (append-two
+                                 (check-variable (car b))
+                                 (check-expression (cadr b)))))
+                         (go (cdr bs)
+                             (append-two acc (list (make-error "let*: malformed binding")))))))
+                  (else
+                   (append-two acc (list (make-error "let*: bindings must be a proper list"))))))))
+      (go bs '()))))
 
 (define check-letstar-expression
   (lambda (bindings body)
-    (and (check-letstar-bindings bindings)
-         (check-expression body))))
+    (append-two
+      (check-letstar-bindings bindings)
+      (check-expression body))))
 
 ;; letrec
 (define is-letrec?
@@ -640,44 +650,59 @@
 (define check-toplevel-form
   (lambda (v)
     (if (is-definition? v)
-        (check-definition v)
-        (check-expression v))))
+        (if (check-definition v)
+            '()
+            (list (make-error "Malformed definition")))
+        (if (check-expression v)
+            '()
+            (list (make-error "Malformed expression"))))))
+
 
 (define check-program
   (lambda (v)
     (cond
-      ;; 1) Detect any cyclic structure once, upfront
       [(cyclic-value? v)
-       (begin
-         (unless check-silently
-           (printf "[Line ~a] Cyclic structure detected in program~n" current-line))
-         #f)]
-      ;; 2) Normal recursive pass over toplevel forms
-      [(null? v) #t]
+       (list (make-error "[Program] Cyclic structure detected"))]
+
+      [(null? v)
+       '()]
+
       [(pair? v)
-       (and (check-toplevel-form (car v))
-            (check-program (cdr v)))]
+       (append-two
+         (check-toplevel-form (car v))
+         (check-program (cdr v)))]
+
       [else
-       (begin
-         (unless check-silently
-           (printf "check-program -- unrecognized input: ~s~n" v))
-         #f)])))
+       (list (make-error "check-program -- unrecognized input (not a proper list)"))])))
 
 
 (define read-file
   (lambda (filename)
     (call-with-input-file filename
       (lambda (p)
-        (letrec ([visit (lambda ()
-                          (let ([in (read p)])
-                            (if (eof-object? in)
-                                '()
-                                (cons in (visit)))))])
+        (letrec ([visit
+                  (lambda ()
+                    (let ([in (read p)])
+                      (if (eof-object? in)
+                          '()
+                          (cons in (visit)))))])
           (visit))))))
+
 
 (define check-file
   (lambda (filename)
     (if (string? filename)
-        (check-program (read-file filename))
-        (begin (printf "not a string: ~s~n" filename) #f))))
+        (let* ([program (read-file filename)]
+               [errors (check-program program)])
+          (if (null? errors)
+              (begin
+                (unless check-silently
+                  (printf "BNF check passed: no syntax errors.~n"))
+                #t)
+              (begin
+                (for-each (lambda (e) (printf "~a~n" e)) errors)
+                #f)))
+        (begin
+          (printf "Filename is not a string: ~s~n" filename)
+          #f))))
 

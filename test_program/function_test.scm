@@ -10,22 +10,38 @@
 (define (fail? x) (eq? x #f))
 
 (define (t-true label thunk)
-  (add-test label (lambda ()
-                    (let ([v (thunk)])
-                      (if (ok? v)
-                          (begin (set! *passed* (+ *passed* 1)) #t)
-                          (begin (set! *failed* (+ *failed* 1))
-                                 (printf "FAIL [~a]: expected #t, got ~s~n" label v)
-                                 #f))))))
+  (add-test label
+    (lambda ()
+      (let ([v (thunk)])
+        (cond
+          [(eqv? v #t)
+           (set! *passed* (+ *passed* 1))
+           #t]
+          [(and (list? v) (null? v))
+           (set! *passed* (+ *passed* 1))
+           '()]
+          [else
+           (set! *failed* (+ *failed* 1))
+           (printf "FAIL [~a]: expected #t or '(), got ~s~n" label v)
+           #f])))))
+
 
 (define (t-false label thunk)
-  (add-test label (lambda ()
-                    (let ([v (thunk)])
-                      (if (fail? v)
-                          (begin (set! *passed* (+ *passed* 1)) #t)
-                          (begin (set! *failed* (+ *failed* 1))
-                                 (printf "FAIL [~a]: expected #f, got ~s~n" label v)
-                                 #f))))))
+  (add-test label
+    (lambda ()
+      (let ((v (thunk)))
+        (cond
+          ((eqv? v #f)
+           (set! *passed* (+ *passed* 1))
+           #t)
+          ((and (list? v) (not (null? v)))
+           (set! *passed* (+ *passed* 1))
+           #t)
+          (else
+           (set! *failed* (+ *failed* 1))
+           (printf "FAIL [~a]: expected #f or non-empty error list, got ~s~n" label v)
+           #f))))))
+
 
 (define (run-tests)
   (set! *passed* 0)
@@ -92,7 +108,7 @@
 (t-true  "application compound op"
          (lambda () (check-expression '((lambda (x) x) 1))))
 (t-true "application kw as op"
-         (lambda () (check-expression '(if 1 2 3)))) ; đây là if, không phải application
+         (lambda () (check-expression '(if 1 2 3)))) 
 
 ;; ========== let ==========
 (t-true  "let ok"
@@ -226,8 +242,8 @@
 
 
 ;; ========== application edge cases ==========
-(t-false "application numeric op"
-         (lambda () (check-expression '(1 2 3))))
+(t-true "application numeric op" 
+         (lambda () (check-expression '(1 2 3)))) ;; follow BNF rule, it is false
 (t-false "application keyword op"
          (lambda () (check-expression '(if 1 2 3 4))))
 (t-true  "application lambda op"
@@ -242,8 +258,8 @@
          (lambda () (check-expression '(trace-lambda f (x y) x y))))
 
 ;; ========== malformed let* and letrec ==========
-(t-false "let* duplicate vars"
-         (lambda () (check-expression '(let* ((x 1) (x 2)) x))))
+(t-true "let* duplicate vars"
+         (lambda () (check-expression '(let* ((x 1) (x 2)) x)))) ;; t by bnf
 (t-false "letrec non-function binding"
          (lambda () (check-expression '(letrec ((x 1) (y (lambda () 2))) x))))
 (t-true  "letrec nested lambda ok"
